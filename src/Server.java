@@ -5,16 +5,20 @@ import java.io.ObjectInputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.List;
 
-public class Server {
+public class Server extends SocketTCP {
     static int port = 5000;
+    static int ack = 0;
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws IOException {
         DatagramSocket dSocket = new DatagramSocket(port);
         System.out.println("Servidor em execução na porta " + port);
-        int ackRcvd = 0;
 
         while (true) {
+
+
             //recv client msg
             byte[] fileToRecv = new byte[200];
             DatagramPacket dPacket = new DatagramPacket(fileToRecv, fileToRecv.length);
@@ -22,30 +26,25 @@ public class Server {
 
             Packet pckt = (Packet) convertBytesToObject(dPacket.getData());
             System.out.println(pckt);
+            boolean put = fillBuffer(pckt);
+
+            if (put)
+                ack = pckt.getSequenceNum();
 
             //send ack to client
             byte[] ackToSend = new byte[100];
-            String ack = "" + pckt.getSequenceNum();
-            ackToSend = ack.getBytes();
+            ackToSend = String.valueOf(ack).getBytes();
             InetAddress clientIP = dPacket.getAddress();
             int clientPort = dPacket.getPort();
             DatagramPacket fileToSend = new DatagramPacket(ackToSend, ackToSend.length, clientIP, clientPort);
             dSocket.send(fileToSend);
+
+            emptyBuffer(pckt);
+
         }
         //dSocket.close();
 
-
     }
-
-    // Convert byte[] to object
-    public static Object convertBytesToObject(byte[] bytes) {
-        InputStream is = new ByteArrayInputStream(bytes);
-        try (ObjectInputStream ois = new ObjectInputStream(is)) {
-            return ois.readObject();
-        } catch (IOException | ClassNotFoundException ioe) {
-            ioe.printStackTrace();
-        }
-        throw new RuntimeException();
-    }
-
 }
+
+
