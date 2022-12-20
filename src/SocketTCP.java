@@ -63,25 +63,26 @@ abstract class SocketTCP {
         return put;
     }
 
-    public static void emptyBuffer(Packet pckt, Timer timer) {
+    public static void emptyBuffer(Packet pckt) {
         printBuffer(buffer);
 
-        if(!timer.isRunning())
+        if(!Server.timer.isRunning())
         {
-            timer.start();
+            Server.timer.start();
             return;
         }
 
-        if(!timer.isFinished())
+        if(!Server.timer.isFinished())
         {
             return;
         }
-
         for (int i = 0; i < MAX_BUFFER_SIZE; i++) {
             if (buffer[i] != null) {
                 buffer[i] = null;
             }
         }
+        System.out.println("Buffer apos empty");
+        printBuffer(buffer);
         //buffer[i % MAX_BUFFER_SIZE - 1] = null;
     }
 

@@ -12,18 +12,20 @@ public class Server extends SocketTCP {
     static int port = 5000;
     static int ack = 0;
 
+    public static Timer timer;
+
     public static void main(String[] args) throws IOException {
         DatagramSocket dSocket = new DatagramSocket(port);
         System.out.println("Servidor em execução na porta " + port);
 
-        Timer timer = new Timer(2000);
+        timer = new Timer(2000);
 
         while (true) {
 
             //recv client msg
             byte[] fileToRecv = new byte[200];
             DatagramPacket dPacket = new DatagramPacket(fileToRecv, fileToRecv.length);
-            dSocket.receive(dPacket);
+            dSocket.receive(dPacket); //acho que isso trava o codigo abaixo até receber um pacote
 
             Packet pckt = (Packet) convertBytesToObject(dPacket.getData());
             System.out.println(pckt);
@@ -40,7 +42,7 @@ public class Server extends SocketTCP {
             DatagramPacket fileToSend = new DatagramPacket(ackToSend, ackToSend.length, clientIP, clientPort);
             dSocket.send(fileToSend);
 
-            emptyBuffer(pckt, timer);
+            emptyBuffer(pckt);
 
         }
         //dSocket.close();
