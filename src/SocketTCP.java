@@ -23,7 +23,7 @@ abstract class SocketTCP {
         socket.receive(packetToRecv);
         String msgRecvd = new String(packetToRecv.getData());
         msgRecvd = cleanString(msgRecvd);
-        if (count == Integer.valueOf(msgRecvd)) {
+        if (count == Integer.parseInt(msgRecvd)) {
             System.out.println("Ack recebido: " + msgRecvd);
             count++;
         }
@@ -63,19 +63,26 @@ abstract class SocketTCP {
         return put;
     }
 
-    public static void emptyBuffer(Packet pckt) {
+    public static void emptyBuffer(Packet pckt, Timer timer) {
         printBuffer(buffer);
-        try {
-            Thread.sleep(5000);
-            for (int i = 0; i < MAX_BUFFER_SIZE; i++) {
-                if (buffer[i] != null) {
-                    buffer[i] = null;
-                }
-            }
-            //buffer[i % MAX_BUFFER_SIZE - 1] = null;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+
+        if(!timer.isRunning())
+        {
+            timer.start();
+            return;
         }
+
+        if(!timer.isFinished())
+        {
+            return;
+        }
+
+        for (int i = 0; i < MAX_BUFFER_SIZE; i++) {
+            if (buffer[i] != null) {
+                buffer[i] = null;
+            }
+        }
+        //buffer[i % MAX_BUFFER_SIZE - 1] = null;
     }
 
 
@@ -92,8 +99,7 @@ abstract class SocketTCP {
 
     public static void printBuffer(Packet[] buffer) {
         System.out.println("----------");
-        for (int i = 0; i < buffer.length; i++)
-            System.out.print(buffer[i] + " ");
+        for (Packet packet : buffer) System.out.print(packet + " ");
         System.out.println("----------");
     }
 

@@ -16,8 +16,9 @@ public class Server extends SocketTCP {
         DatagramSocket dSocket = new DatagramSocket(port);
         System.out.println("Servidor em execução na porta " + port);
 
-        while (true) {
+        Timer timer = new Timer(2000);
 
+        while (true) {
 
             //recv client msg
             byte[] fileToRecv = new byte[200];
@@ -39,7 +40,7 @@ public class Server extends SocketTCP {
             DatagramPacket fileToSend = new DatagramPacket(ackToSend, ackToSend.length, clientIP, clientPort);
             dSocket.send(fileToSend);
 
-            emptyBuffer(pckt);
+            emptyBuffer(pckt, timer);
 
         }
         //dSocket.close();
