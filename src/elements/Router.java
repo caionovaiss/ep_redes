@@ -1,32 +1,30 @@
 package elements;
 
+import attributes.Attributes;
+import myThreads.ReceiveSocket;
+import packet.Packet;
+
 import java.io.IOException;
-import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.SocketException;
 
-public class Router {
+public class Router extends Host {
+
     public static void main(String[] args) {
         try {
-            DatagramSocket rcvSocket = new DatagramSocket(5000);
+            //ida
+            DatagramSocket routerSocket = new DatagramSocket(5000);
+            ReceiveSocket receiveSocket = new ReceiveSocket(routerSocket, Attributes.ElementType.ROUTER_G);
+            Thread listen = new Thread(receiveSocket);
+            listen.start();
 
-            while (true) {
-                byte[] fileToRcv = new byte[200];
-                DatagramPacket pktRcvd = new DatagramPacket(fileToRcv, fileToRcv.length);
-                rcvSocket.receive(pktRcvd);
+            //volta
+            DatagramSocket routerSocket2 = new DatagramSocket(5001);
+            ReceiveSocket receiveSocket2 = new ReceiveSocket(routerSocket2, Attributes.ElementType.ROUTER_B);
+            Thread listen2 = new Thread(receiveSocket2);
+            listen2.start();
 
-                System.out.println("Passou pelo roteador");
-
-                DatagramSocket sendSocket = new DatagramSocket();
-                InetAddress ip = InetAddress.getByName("127.0.0.1");
-                DatagramPacket sendPacket = new DatagramPacket(fileToRcv, fileToRcv.length, ip, 5001);
-                sendSocket.send(sendPacket);
-
-            }
         } catch (SocketException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
