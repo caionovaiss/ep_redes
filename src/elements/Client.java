@@ -15,6 +15,9 @@ public class Client extends Host {
             DatagramSocket socket = new DatagramSocket(5002);
             int count = 1;
 
+            Thread listen = new Thread(new ReceiveSocket(socket, Attributes.ElementType.CLIENT));
+            listen.start();
+
             while (true) {
                 //criando pacote e enviando
                 String msg = getMsg();
@@ -28,8 +31,6 @@ public class Client extends Host {
                 System.out.println("Tamanho do pacote de envio: " + fileToSend.length);
                 socket.send(dPacket);
 
-                Thread listen = new Thread(new ReceiveSocket(socket, Attributes.ElementType.CLIENT));
-                listen.start();
                 count++;
 
             }

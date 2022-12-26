@@ -44,7 +44,7 @@ public class ReceiveSocket extends Host implements Runnable {
                     serverAns(socket, getPkt().getSequenceNum(), datagram.getAddress(), 5001);
                 } else {
                     System.out.println("CHEGOU NO CLIENT");
-                    System.out.println("meu ack eh: " + pcktRcvd.getAck());
+                    System.out.println("minha janela de recepção: " + pcktRcvd.getRwnd());
                 }
 
             }
@@ -65,7 +65,7 @@ public class ReceiveSocket extends Host implements Runnable {
     public static void routerAns(Packet pkt, byte[] bytesToRcv, int port) throws IOException {
         System.out.println("Enviando para o client/servidor: " + pkt);
         DatagramSocket sendSocket = new DatagramSocket();
-        InetAddress ip = InetAddress.getByName("127.0.0.1");
+        InetAddress ip = InetAddress.getByName("127.0.0.1"); //localhost
         DatagramPacket sendPacket = new DatagramPacket(bytesToRcv, bytesToRcv.length, ip, port);
         sendSocket.send(sendPacket);
     }
