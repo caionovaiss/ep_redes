@@ -9,7 +9,7 @@ public class Attributes {
     }
 
     public enum CongestionControl {
-        PARTIDA_LENTA,
-        CRESCIMENTO_LINEAR
+        SLOW_START,
+        CONGESTION_AVOIDANCE
     }
 }

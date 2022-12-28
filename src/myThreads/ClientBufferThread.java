@@ -16,90 +16,123 @@ import java.util.Queue;
 public class ClientBufferThread extends Host implements Runnable {
     volatile DatagramSocket socket;
     volatile byte[] bytesToRcv;
-    volatile Packet pkt;
-    volatile DatagramPacket datagram;
     private volatile int cwnd; //janela de congestionamento
     volatile Attributes.CongestionControl typeOfGrowth;
-    volatile int i = 1;
-    volatile Queue<Integer> pktSentList;
+    volatile Queue<Integer> seqNumSentList;
     volatile int ackReceived = 0;
     volatile List<Integer> lastAcksReceived;
-    volatile int sstresh = 8;
-    volatile int currentWindow = 1;
+    volatile int lastByteSent = 0;
+    volatile int lastByteAcked = 0;
+    volatile int MSS = 10;
+    volatile int sstresh;
+    volatile int ackExpected;
+    volatile boolean resendingPtk;
+    volatile int pktToResendSeqNum = 0;
 
     public ClientBufferThread(DatagramSocket socket) {
-        this.pktSentList = new LinkedList<>();
+        this.seqNumSentList = new LinkedList<>();
         this.lastAcksReceived = new ArrayList<>();
         this.bytesToRcv = null;
         this.socket = socket;
-        this.typeOfGrowth = Attributes.CongestionControl.PARTIDA_LENTA;
-        this.cwnd = 1;
+        this.typeOfGrowth = Attributes.CongestionControl.SLOW_START;
+        this.cwnd = MSS;
+        this.sstresh = MSS * 8;
+        this.resendingPtk = false;
     }
 
     @Override
     public void run() {
         try {
-            socket.setSoTimeout(100);
             while (true) {
+                //evitar que acks ja recebidos sejam considerados.
+                //Isso significa que NÃO estamos usando GBN, já que não
+                //reenviamos os pacotes com acks ja recebidos
+                if (lastAcksReceived.contains(seqNumSentList.peek()))
+                    seqNumSentList.poll();
 
+                // socket.setSoTimeout(10000);
                 byte[] fileToRecv = new byte[1024];
                 DatagramPacket datagram = new DatagramPacket(fileToRecv, fileToRecv.length);
-
                 socket.receive(datagram);
+
                 Packet pktReceived = (Packet) convertBytesToObject(datagram.getData());
                 ackReceived = pktReceived.getAck();
                 addAckReceived(ackReceived);
 
-                //verificando existencia de 3 acks repetidos recebidos
-                int listSize = getLastAcksReceived().size();
-                if (listSize >= 3 && getLastAcksReceived().get(listSize - 1) == getLastAcksReceived().get(listSize - 2) && getLastAcksReceived().get(listSize - 2) == getLastAcksReceived().get(listSize - 3)) {
-                    this.cwnd = this.cwnd / 2;
+                if (!seqNumSentList.isEmpty()) {
+                    System.out.println("lista de num seq: " + seqNumSentList);
+                    ackExpected = seqNumSentList.peek();
+
+                    System.out.println("ack expected: " + ackExpected);
+                    System.out.println("ack received: " + ackReceived);
+                    System.out.println("lista de ACKS receiveds: " + lastAcksReceived);
                 }
 
+                checkIfAckReceivedIsEqualExpected(pktReceived);
+                checkTripleAck();
+                checkIfHitSstresh();
 
-                if (!getPktSentList().isEmpty()) {
-                    if (ackReceived == getPktSentList().peek()) {
-                        setPkt(pktReceived);
-                        setDatagram(datagram);
-                        setBytesToRcv(fileToRecv);
-
-                        getPktSentList().poll();
-
-                    } else if (ackReceived != getPktSentList().peek()) {
-                        resendPtk(getPktSentList().peek());
-                    }
-                }
-
-                //aumentar janela pois recebeu um ack
-                if (getPktSentList().isEmpty())
-                    increaseCwnd();
-
-                if (getCwnd() >= sstresh) {
-                    setTypeOfGrowth(Attributes.CongestionControl.CRESCIMENTO_LINEAR);
-                    this.currentWindow = getCwnd();
-                }
-
+                System.out.println("--------------------------------");
             }
         } catch (SocketException e) {
             System.out.println("Timeout");
-            setTypeOfGrowth(Attributes.CongestionControl.PARTIDA_LENTA);
-            this.cwnd = 1;
-            this.i = 1;
+            setTypeOfGrowth(Attributes.CongestionControl.SLOW_START);
+            this.cwnd = MSS;
             throw new RuntimeException(e);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public void increaseCwnd() {
-        if (this.typeOfGrowth == Attributes.CongestionControl.PARTIDA_LENTA) {
-            this.cwnd = (int) Math.pow(2, this.i);
-            System.out.println(this.cwnd);
-            this.i++;
-        } else {
-            this.cwnd = this.currentWindow + 1;
-            System.out.println(this.cwnd);
+    private void checkIfHitSstresh() {
+        if (getCwnd() == getSstresh())
+            setTypeOfGrowth(Attributes.CongestionControl.CONGESTION_AVOIDANCE);
+    }
+
+    private void checkTripleAck() {
+        //checar 3 acks duplicados
+        if (getLastAcksReceived().size() >= 3
+                && ackReceived == getLastAcksReceived().get(getLastAcksReceived().size() - 1)
+                && ackReceived == getLastAcksReceived().get(getLastAcksReceived().size() - 2)) {
+            setSstresh(this.cwnd);
+            this.cwnd /= 2;
+            setTypeOfGrowth(Attributes.CongestionControl.CONGESTION_AVOIDANCE);
         }
+    }
+
+    private void checkIfAckReceivedIsEqualExpected(Packet pktReceived) {
+        //verificar se não recebemos o ack desejado para fazer reenvio
+        if (ackReceived != ackExpected) {
+            resendPkt(ackExpected);
+        } else {
+            seqNumSentList.poll();
+            //atualizando lastByteAcked
+            increaseLastByteAcked(pktReceived.getLength());
+            increaseCwnd();
+        }
+    }
+
+    public void increaseCwnd() {
+        if (this.typeOfGrowth == Attributes.CongestionControl.SLOW_START) {
+            this.cwnd += this.MSS;
+            //System.out.println("tamanho da janela: " + this.cwnd);
+        } else if (this.typeOfGrowth == Attributes.CongestionControl.CONGESTION_AVOIDANCE) {
+            this.cwnd += (this.MSS * (this.MSS / this.cwnd));
+            //System.out.println("tamanho da janela: " + this.cwnd);
+        }
+    }
+
+    public void increaseLastByteAcked(int length) {
+        setLastByteAcked(getLastByteAcked() + length);
+    }
+
+    public void increaseLastByteSent(int length) {
+        setLastByteSent(getLastByteSent() + length);
+    }
+
+    public void resendPkt(int num) {
+        this.pktToResendSeqNum = num;
+        this.resendingPtk = true;
     }
 
     public void decreaseCwnd() {
@@ -107,44 +140,58 @@ public class ClientBufferThread extends Host implements Runnable {
     }
 
     public void addSequenceNumToList(int num) {
-        this.pktSentList.add(num);
-    }
-
-    public void resendPtk(int num) {
-
-    }
-
-    public void setBytesToRcv(byte[] bytesToRcv) {
-        this.bytesToRcv = bytesToRcv;
-    }
-
-    public void setPkt(Packet pkt) {
-        this.pkt = pkt;
-    }
-
-    public void setDatagram(DatagramPacket datagram) {
-        this.datagram = datagram;
-    }
-
-    public int getCwnd() {
-        return cwnd;
-    }
-
-    public Queue<Integer> getPktSentList() {
-        return pktSentList;
+        this.seqNumSentList.add(num);
     }
 
     public void setTypeOfGrowth(Attributes.CongestionControl typeOfGrowth) {
         this.typeOfGrowth = typeOfGrowth;
     }
 
-    public List<Integer> getLastAcksReceived() {
-        return lastAcksReceived;
-    }
-
     public void addAckReceived(int ack) {
         this.lastAcksReceived.add(ack);
     }
 
-}
+    public int getLastByteSent() {
+        return lastByteSent;
+    }
 
+    public void setLastByteSent(int lastByteSent) {
+        this.lastByteSent = lastByteSent;
+    }
+
+    public int getLastByteAcked() {
+        return lastByteAcked;
+    }
+
+    public void setLastByteAcked(int lastByteAcked) {
+        this.lastByteAcked = lastByteAcked;
+    }
+
+    public int getSstresh() {
+        return sstresh;
+    }
+
+    public void setSstresh(int sstresh) {
+        this.sstresh = sstresh;
+    }
+
+    public List<Integer> getLastAcksReceived() {
+        return lastAcksReceived;
+    }
+
+    public boolean isResendingPtk() {
+        return resendingPtk;
+    }
+
+    public int getPktToResendSeqNum() {
+        return pktToResendSeqNum;
+    }
+
+    public int getCwnd() {
+        return cwnd;
+    }
+
+    public void setResendingPtk(boolean resendingPtk) {
+        this.resendingPtk = resendingPtk;
+    }
+}

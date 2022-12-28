@@ -10,6 +10,7 @@ public class ServerBufferThread implements Runnable {
     private volatile int lastByteRead = 0;
     private volatile int lastByteRcvd = 0;
     private volatile int rwnd;
+    private volatile int seqNumExpected = 1;
 
     public ServerBufferThread(int buffer, Queue<Packet> queue) {
         this.buffer = buffer;
@@ -66,8 +67,20 @@ public class ServerBufferThread implements Runnable {
         return this.rwnd;
     }
 
+    public int getSeqNumExpected() {
+        return seqNumExpected;
+    }
+
+    public void setSeqNumExpected(int seqNumExpected) {
+        this.seqNumExpected = seqNumExpected;
+    }
+
     public void setRwnd(int rwnd) {
         this.rwnd = rwnd;
+    }
+
+    public void updateSeqNumExpected() {
+        this.seqNumExpected += 1;
     }
 
 }

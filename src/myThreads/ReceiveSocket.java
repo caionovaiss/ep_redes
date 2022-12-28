@@ -13,10 +13,6 @@ public class ReceiveSocket extends Host implements Runnable {
     volatile DatagramPacket datagram;
     volatile byte[] bytesToRcv;
     volatile Attributes.ElementType elementType;
-    volatile int ack = 0;
-    volatile boolean ackReceived = false;
-    volatile int cwnd = 1;
-    volatile int effectiveWindow = 1;
 
     public ReceiveSocket(DatagramSocket socket, Attributes.ElementType elementType) {
         this.bytesToRcv = null;
@@ -27,7 +23,10 @@ public class ReceiveSocket extends Host implements Runnable {
     @Override
     public void run() {
         try {
+            int i = 0;
             while (true) {
+
+                //recebimento de pacotes
                 byte[] fileToRecv = new byte[1024];
                 DatagramPacket datagram = new DatagramPacket(fileToRecv, fileToRecv.length);
 
@@ -37,9 +36,17 @@ public class ReceiveSocket extends Host implements Runnable {
                 setDatagram(datagram);
                 setBytesToRcv(fileToRecv);
 
+                //pacote indo de CLIENT para SERVER
                 if (elementType == Attributes.ElementType.ROUTER_G) {
                     Thread.sleep(3000);
-                    routerAns(getPkt(), getBytesToRcv(), 5003);
+                    if (!getPkt().getText().equals("arrozzzzzz"))
+                        routerAns(getPkt(), getBytesToRcv(), 5003);
+                    else if (i == 0) {
+                        i++;
+                    } else {
+                        routerAns(getPkt(), getBytesToRcv(), 5003);
+                    }
+                    //pacote indo de SERVER para CLIENT
                 } else if (elementType == Attributes.ElementType.ROUTER_B) {
                     routerAns(getPkt(), getBytesToRcv(), 5002);
                 } else if (elementType == Attributes.ElementType.SERVER) {
@@ -72,20 +79,8 @@ public class ReceiveSocket extends Host implements Runnable {
         sendSocket.send(sendPacket);
     }
 
-    public DatagramPacket getDatagram() {
-        return datagram;
-    }
-
     public void setDatagram(DatagramPacket datagram) {
         this.datagram = datagram;
-    }
-
-    public DatagramSocket getSocket() {
-        return socket;
-    }
-
-    public void setSocket(DatagramSocket socket) {
-        this.socket = socket;
     }
 
     public Packet getPkt() {

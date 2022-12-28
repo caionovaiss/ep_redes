@@ -42,4 +42,13 @@ public abstract class Host {
         }
         throw new RuntimeException();
     }
+
+    public static void sendPkt(Packet pkt, DatagramSocket socket) throws IOException {
+        byte[] fileToSend;
+        fileToSend = convertObjectToBytes(pkt);
+        InetAddress ip = InetAddress.getByName("127.0.0.1");
+        DatagramPacket dPacket = new DatagramPacket(fileToSend, fileToSend.length, ip, 5000);
+
+        socket.send(dPacket);
+    }
 }

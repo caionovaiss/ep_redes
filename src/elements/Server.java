@@ -18,7 +18,7 @@ public class Server extends Host {
             System.out.println("Server started");
             Queue<Packet> pktQueue = new LinkedList<>();
 
-            ServerBufferThread bufferThread = new ServerBufferThread(10, pktQueue);
+            ServerBufferThread bufferThread = new ServerBufferThread(100, pktQueue);
             Thread listen = new Thread(bufferThread);
             listen.start();
 
@@ -32,6 +32,7 @@ public class Server extends Host {
 
                 System.out.println(pktRcvd);
 
+                //CONTROLE DE FLUXO
                 if (pktRcvd.getLength() < bufferThread.getRwnd()) {
                     pktQueue.add(pktRcvd);
                     bufferThread.setQueue(pktQueue);
@@ -44,14 +45,17 @@ public class Server extends Host {
                     //send ack
                     byte[] bytesToSend;
                     Packet ackPkt = new Packet(pktRcvd.getSequenceNum(), rwnd);
+                    ackPkt.setLength(pktRcvd.getLength());
                     bytesToSend = convertObjectToBytes(ackPkt);
                     DatagramPacket fileToSend = new DatagramPacket(bytesToSend, bytesToSend.length, datagram.getAddress(), 5001);
                     serverSocket.send(fileToSend);
+
+                    if (pktRcvd.getSequenceNum() == bufferThread.getSeqNumExpected()) {
+                        bufferThread.updateSeqNumExpected();
+                    }
                 }
-
-
+                //BUFFER CHEIO, DESCARTA PACOTE RECEBIDO
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }

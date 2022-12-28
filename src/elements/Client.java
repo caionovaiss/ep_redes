@@ -5,6 +5,8 @@ import packet.Packet;
 
 import java.io.IOException;
 import java.net.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Client extends Host {
 
@@ -12,28 +14,50 @@ public class Client extends Host {
         try {
             DatagramSocket socket = new DatagramSocket(5002);
             int count = 1;
+            boolean newMsg = true;
+            List<Packet> pktSentList = new ArrayList<>();
 
             ClientBufferThread clientBufferThread = new ClientBufferThread(socket);
             Thread listen = new Thread(clientBufferThread);
             listen.start();
 
+            Packet pkt = null;
+
             while (true) {
-                while (clientBufferThread.getCwnd() != 0) {
-                    //criando pacote e enviando
-                    String msg = getMsg(count);
-                    Packet pkt = new Packet(count, msg);
 
-                    byte[] fileToSend;
-                    fileToSend = convertObjectToBytes(pkt);
-                    InetAddress ip = InetAddress.getByName("127.0.0.1");
-                    DatagramPacket dPacket = new DatagramPacket(fileToSend, fileToSend.length, ip, 5000);
+                //reenviar o pacote
+                if (clientBufferThread.isResendingPtk()) {
+                    for (Packet p : pktSentList) {
+                        if (p.getSequenceNum() == clientBufferThread.getPktToResendSeqNum()) {
+                            System.out.println("pacote para ser reenviado: " + p);
+                            sendPkt(p, socket);
 
-                    socket.send(dPacket);
-                    System.out.println("Pacote enviado: " + pkt);
+                            clientBufferThread.setResendingPtk(false);
+                        }
+                    }
+                    newMsg = false;
+                }
 
+                int diff = clientBufferThread.getLastByteSent() - clientBufferThread.getLastByteAcked();
+
+                if (newMsg) {
+                    String msg = getMsg(count - 1);
+                    pkt = new Packet(count, msg);
+                    newMsg = false;
+                }
+
+                if (clientBufferThread.getCwnd() - diff >= pkt.getLength()) {
+
+                    String msg = getMsg(count - 1);
+                    pkt = new Packet(count, msg);
+                    sendPkt(pkt, socket);
+                    System.out.println("pacote enviado: " + pkt);
+                    pktSentList.add(pkt);
+
+                    clientBufferThread.increaseLastByteSent(pkt.getLength());
                     clientBufferThread.addSequenceNumToList(pkt.getSequenceNum());
 
-                    clientBufferThread.decreaseCwnd();
+                    newMsg = true;
                     count++;
                 }
             }
@@ -41,19 +65,6 @@ public class Client extends Host {
         } catch (Exception e) {
             e.printStackTrace();
         }
-    }
-
-    public static void sendPkt(int count, DatagramSocket socket) throws IOException {
-        //criando pacote e enviando
-        String msg = getMsg(count);
-        Packet pkt = new Packet(count, msg);
-
-        byte[] fileToSend;
-        fileToSend = convertObjectToBytes(pkt);
-        InetAddress ip = InetAddress.getByName("127.0.0.1");
-        DatagramPacket dPacket = new DatagramPacket(fileToSend, fileToSend.length, ip, 5000);
-
-        socket.send(dPacket);
     }
 
 }

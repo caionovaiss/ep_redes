@@ -24,6 +24,7 @@ public class Packet implements Serializable {
         this.sequenceNum = sequenceNum;
         this.text = text;
         this.rwnd = 0;
+        this.length = text.length();
     }
 
     public Packet(int ack, int rwnd) {
