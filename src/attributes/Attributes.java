@@ -6,6 +6,10 @@ public class Attributes {
         ROUTER_G,
         ROUTER_B,
         SERVER,
-        CLIENT
+    }
+
+    public enum CongestionControl {
+        PARTIDA_LENTA,
+        CRESCIMENTO_LINEAR
     }
 }

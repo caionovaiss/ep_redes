@@ -1,6 +1,6 @@
 package elements;
 
-import myThreads.BufferThread;
+import myThreads.ServerBufferThread;
 import packet.Packet;
 
 import java.net.DatagramPacket;
@@ -18,7 +18,7 @@ public class Server extends Host {
             System.out.println("Server started");
             Queue<Packet> pktQueue = new LinkedList<>();
 
-            BufferThread bufferThread = new BufferThread(10, pktQueue);
+            ServerBufferThread bufferThread = new ServerBufferThread(10, pktQueue);
             Thread listen = new Thread(bufferThread);
             listen.start();
 
@@ -51,9 +51,6 @@ public class Server extends Host {
 
 
             }
-//            ReceiveSocket rSocket = new ReceiveSocket(serverSocket, Attributes.ElementType.SERVER);
-//            Thread listen = new Thread(rSocket);
-//            listen.start();
 
         } catch (Exception e) {
             e.printStackTrace();

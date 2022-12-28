@@ -1,5 +1,6 @@
 package elements;
 
+import insercoes.CreatePackets;
 import packet.Packet;
 
 import java.io.*;
@@ -10,10 +11,12 @@ import java.util.Scanner;
 
 public abstract class Host {
 
-    public static String getMsg() {
-        System.out.println("Digite uma mensagem");
-        Scanner sc = new Scanner(System.in);
-        String msg = sc.nextLine();
+    public static String getMsg(int i) {
+        String[] words = CreatePackets.getWords();
+        String msg = words[i];
+//        System.out.println("Digite uma mensagem");
+//        Scanner sc = new Scanner(System.in);
+//        String msg = sc.nextLine();
         return msg;
     }
 

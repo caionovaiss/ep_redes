@@ -2,9 +2,7 @@ package elements;
 
 import attributes.Attributes;
 import myThreads.ReceiveSocket;
-import packet.Packet;
 
-import java.io.IOException;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 

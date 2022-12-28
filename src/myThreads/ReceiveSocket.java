@@ -13,6 +13,10 @@ public class ReceiveSocket extends Host implements Runnable {
     volatile DatagramPacket datagram;
     volatile byte[] bytesToRcv;
     volatile Attributes.ElementType elementType;
+    volatile int ack = 0;
+    volatile boolean ackReceived = false;
+    volatile int cwnd = 1;
+    volatile int effectiveWindow = 1;
 
     public ReceiveSocket(DatagramSocket socket, Attributes.ElementType elementType) {
         this.bytesToRcv = null;
@@ -43,8 +47,6 @@ public class ReceiveSocket extends Host implements Runnable {
                     System.out.println(pcktRcvd);
                     serverAns(socket, getPkt().getSequenceNum(), datagram.getAddress(), 5001);
                 } else {
-                    System.out.println("CHEGOU NO CLIENT");
-                    System.out.println("minha janela de recepção: " + pcktRcvd.getRwnd());
                 }
 
             }
@@ -101,4 +103,6 @@ public class ReceiveSocket extends Host implements Runnable {
     public void setPkt(Packet pkt) {
         this.pkt = pkt;
     }
+
+
 }

@@ -1,12 +1,10 @@
 package elements;
 
-import attributes.Attributes;
-import myThreads.ReceiveSocket;
+import myThreads.ClientBufferThread;
 import packet.Packet;
 
-import java.io.*;
+import java.io.IOException;
 import java.net.*;
-import java.util.Scanner;
 
 public class Client extends Host {
 
@@ -15,29 +13,47 @@ public class Client extends Host {
             DatagramSocket socket = new DatagramSocket(5002);
             int count = 1;
 
-            Thread listen = new Thread(new ReceiveSocket(socket, Attributes.ElementType.CLIENT));
+            ClientBufferThread clientBufferThread = new ClientBufferThread(socket);
+            Thread listen = new Thread(clientBufferThread);
             listen.start();
 
             while (true) {
-                //criando pacote e enviando
-                String msg = getMsg();
-                Packet pckt = new Packet(msg.length(), count, msg);
+                while (clientBufferThread.getCwnd() != 0) {
+                    //criando pacote e enviando
+                    String msg = getMsg(count);
+                    Packet pkt = new Packet(count, msg);
 
-                byte[] fileToSend;
-                fileToSend = convertObjectToBytes(pckt);
-                InetAddress ip = InetAddress.getByName("127.0.0.1");
-                DatagramPacket dPacket = new DatagramPacket(fileToSend, fileToSend.length, ip, 5000);
+                    byte[] fileToSend;
+                    fileToSend = convertObjectToBytes(pkt);
+                    InetAddress ip = InetAddress.getByName("127.0.0.1");
+                    DatagramPacket dPacket = new DatagramPacket(fileToSend, fileToSend.length, ip, 5000);
 
-                System.out.println("Tamanho do pacote de envio: " + fileToSend.length);
-                socket.send(dPacket);
+                    socket.send(dPacket);
+                    System.out.println("Pacote enviado: " + pkt);
 
-                count++;
+                    clientBufferThread.addSequenceNumToList(pkt.getSequenceNum());
 
+                    clientBufferThread.decreaseCwnd();
+                    count++;
+                }
             }
 
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+
+    public static void sendPkt(int count, DatagramSocket socket) throws IOException {
+        //criando pacote e enviando
+        String msg = getMsg(count);
+        Packet pkt = new Packet(count, msg);
+
+        byte[] fileToSend;
+        fileToSend = convertObjectToBytes(pkt);
+        InetAddress ip = InetAddress.getByName("127.0.0.1");
+        DatagramPacket dPacket = new DatagramPacket(fileToSend, fileToSend.length, ip, 5000);
+
+        socket.send(dPacket);
     }
 
 }

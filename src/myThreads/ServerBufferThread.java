@@ -4,14 +4,14 @@ import packet.Packet;
 
 import java.util.Queue;
 
-public class BufferThread implements Runnable {
+public class ServerBufferThread implements Runnable {
     private volatile int buffer;
     private volatile Queue<Packet> queue;
     private volatile int lastByteRead = 0;
     private volatile int lastByteRcvd = 0;
     private volatile int rwnd;
 
-    public BufferThread(int buffer, Queue<Packet> queue) {
+    public ServerBufferThread(int buffer, Queue<Packet> queue) {
         this.buffer = buffer;
         this.queue = queue;
         this.rwnd = buffer;

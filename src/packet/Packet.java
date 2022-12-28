@@ -11,15 +11,16 @@ public class Packet implements Serializable {
 
     @Override
     public String toString() {
-        return "packet.Packet{" +
+        return "Packet{" +
                 "length=" + length +
                 ", sequenceNum=" + sequenceNum +
                 ", text='" + text + '\'' +
+                ", rwnd=" + rwnd +
+                ", ack=" + ack +
                 '}';
     }
 
-    public Packet(int length, int sequenceNum, String text) {
-        this.length = length;
+    public Packet(int sequenceNum, String text) {
         this.sequenceNum = sequenceNum;
         this.text = text;
         this.rwnd = 0;
