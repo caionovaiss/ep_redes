@@ -1,6 +1,6 @@
 package elements;
 
-import attributes.Attributes;
+import attributes.Enums;
 import myThreads.ReceiveSocket;
 
 import java.net.DatagramSocket;
@@ -12,13 +12,13 @@ public class Router extends Host {
         try {
             //ida
             DatagramSocket routerSocket = new DatagramSocket(5000);
-            ReceiveSocket receiveSocket = new ReceiveSocket(routerSocket, Attributes.ElementType.ROUTER_G);
+            ReceiveSocket receiveSocket = new ReceiveSocket(routerSocket, Enums.ElementType.ROUTER_G);
             Thread listen = new Thread(receiveSocket);
             listen.start();
 
             //volta
             DatagramSocket routerSocket2 = new DatagramSocket(5001);
-            ReceiveSocket receiveSocket2 = new ReceiveSocket(routerSocket2, Attributes.ElementType.ROUTER_B);
+            ReceiveSocket receiveSocket2 = new ReceiveSocket(routerSocket2, Enums.ElementType.ROUTER_B);
             Thread listen2 = new Thread(receiveSocket2);
             listen2.start();
 

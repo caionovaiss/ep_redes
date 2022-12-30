@@ -1,9 +1,9 @@
 package elements;
 
+import attributes.Enums;
 import myThreads.ClientBufferThread;
 import packet.Packet;
 
-import java.io.IOException;
 import java.net.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -14,7 +14,7 @@ public class Client extends Host {
         try {
             DatagramSocket socket = new DatagramSocket(5002);
             int count = 1;
-            boolean newMsg = true;
+            boolean newMsg;
             List<Packet> pktSentList = new ArrayList<>();
 
             ClientBufferThread clientBufferThread = new ClientBufferThread(socket);
@@ -24,47 +24,43 @@ public class Client extends Host {
             Packet pkt = null;
 
             while (true) {
+                if (clientBufferThread.getTypeOfGrowth() != Enums.CongestionControl.STOP) {
+                    newMsg = resendPkt(clientBufferThread, pktSentList, socket);
+                    int diff = clientBufferThread.getLastByteSent() - clientBufferThread.getLastByteAcked();
 
-                //reenviar o pacote
-                if (clientBufferThread.isResendingPtk()) {
-                    for (Packet p : pktSentList) {
-                        if (p.getSequenceNum() == clientBufferThread.getPktToResendSeqNum()) {
-                            System.out.println("pacote para ser reenviado: " + p);
-                            sendPkt(p, socket);
+                    if (clientBufferThread.getTypeOfGrowth() != Enums.CongestionControl.WAITING_PKT) {
+                        if (newMsg) {
+                            String msg = getMsg(count - 1);
+                            pkt = new Packet(count, msg);
+                        }
 
-                            clientBufferThread.setResendingPtk(false);
+                        if (clientBufferThread.getCwnd() - diff >= pkt.getLength()) {
+                            String msg = getMsg(count - 1);
+                            pkt = new Packet(count, msg);
+                            sendPkt(pkt, socket);
+                            clientBufferThread.setStartTime(System.currentTimeMillis());
+                            System.out.println("pacote enviado: " + pkt);
+                            pktSentList.add(pkt);
+
+                            clientBufferThread.increaseLastByteSent(pkt.getLength());
+                            clientBufferThread.addSequenceNumToList(pkt.getSequenceNum());
+
+                            count++;
                         }
                     }
-                    newMsg = false;
-                }
-
-                int diff = clientBufferThread.getLastByteSent() - clientBufferThread.getLastByteAcked();
-
-                if (newMsg) {
-                    String msg = getMsg(count - 1);
-                    pkt = new Packet(count, msg);
-                    newMsg = false;
-                }
-
-                if (clientBufferThread.getCwnd() - diff >= pkt.getLength()) {
-
-                    String msg = getMsg(count - 1);
-                    pkt = new Packet(count, msg);
-                    sendPkt(pkt, socket);
-                    System.out.println("pacote enviado: " + pkt);
-                    pktSentList.add(pkt);
-
-                    clientBufferThread.increaseLastByteSent(pkt.getLength());
-                    clientBufferThread.addSequenceNumToList(pkt.getSequenceNum());
-
-                    newMsg = true;
-                    count++;
+                } else {
+                    long timeElapsed = System.currentTimeMillis();
+                    if (timeElapsed - clientBufferThread.getStartRwndEmptyTime() >= 3000) {
+                        clientBufferThread.setTypeOfGrowth(clientBufferThread.getLastTypeOfGrowth());
+                        Packet pktToCheckRwnd = new Packet(0, "check rwnd");
+                        sendPkt(pktToCheckRwnd, socket);
+                    }
                 }
             }
-
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
 
 }

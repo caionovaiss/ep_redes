@@ -1,6 +1,6 @@
 package attributes;
 
-public class Attributes {
+public class Enums {
 
     public enum ElementType {
         ROUTER_G,
@@ -10,6 +10,8 @@ public class Attributes {
 
     public enum CongestionControl {
         SLOW_START,
-        CONGESTION_AVOIDANCE
+        CONGESTION_AVOIDANCE,
+        WAITING_PKT,
+        STOP
     }
 }

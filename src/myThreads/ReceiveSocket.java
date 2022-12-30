@@ -1,7 +1,8 @@
 package myThreads;
 
-import attributes.Attributes;
+import attributes.Enums;
 import elements.Host;
+import insercoes.MyData;
 import packet.Packet;
 
 import java.io.IOException;
@@ -12,9 +13,9 @@ public class ReceiveSocket extends Host implements Runnable {
     volatile Packet pkt;
     volatile DatagramPacket datagram;
     volatile byte[] bytesToRcv;
-    volatile Attributes.ElementType elementType;
+    volatile Enums.ElementType elementType;
 
-    public ReceiveSocket(DatagramSocket socket, Attributes.ElementType elementType) {
+    public ReceiveSocket(DatagramSocket socket, Enums.ElementType elementType) {
         this.bytesToRcv = null;
         this.socket = socket;
         this.elementType = elementType;
@@ -24,6 +25,10 @@ public class ReceiveSocket extends Host implements Runnable {
     public void run() {
         try {
             int i = 0;
+            int j = 0;
+            int k = 0;
+            int l = 0;
+
             while (true) {
 
                 //recebimento de pacotes
@@ -37,19 +42,27 @@ public class ReceiveSocket extends Host implements Runnable {
                 setBytesToRcv(fileToRecv);
 
                 //pacote indo de CLIENT para SERVER
-                if (elementType == Attributes.ElementType.ROUTER_G) {
-                    Thread.sleep(3000);
-                    if (!getPkt().getText().equals("arrozzzzzz"))
+                if (elementType == Enums.ElementType.ROUTER_G) {
+
+                    Thread.sleep(500);
+                    String text = getPkt().getText();
+                    if (!MyData.getComidasProibidasList().contains(text))
                         routerAns(getPkt(), getBytesToRcv(), 5003);
-                    else if (i == 0) {
+                    else if (text.equals("jiló") && i == 0)
                         i++;
-                    } else {
+                    else if (text.equals("abacateeee") && j == 0)
+                        j++;
+                    else if (text.equals("jacaaaaaaa") && k == 0)
+                        k++;
+                    else if (text.equals("berinjelaa") && l == 0)
+                        l++;
+                    else
                         routerAns(getPkt(), getBytesToRcv(), 5003);
-                    }
+
                     //pacote indo de SERVER para CLIENT
-                } else if (elementType == Attributes.ElementType.ROUTER_B) {
+                } else if (elementType == Enums.ElementType.ROUTER_B) {
                     routerAns(getPkt(), getBytesToRcv(), 5002);
-                } else if (elementType == Attributes.ElementType.SERVER) {
+                } else if (elementType == Enums.ElementType.SERVER) {
                     System.out.print("Recebido esse pacote no servidor: ");
                     System.out.println(pcktRcvd);
                     serverAns(socket, getPkt().getSequenceNum(), datagram.getAddress(), 5001);
@@ -101,3 +114,12 @@ public class ReceiveSocket extends Host implements Runnable {
 
 
 }
+//!text.equals("gilooooooo")
+//        && !text.equals("abacateeee")
+//        && !text.equals("jacaaaaaaa")
+//        && !text.equals("espinafree")
+//        && !text.equals("miojoooooo")
+//        && !text.equals("panetoneee")
+//        && !text.equals("toranjaaaa")
+//        && !text.equals("carvaooooo")
+//        &&

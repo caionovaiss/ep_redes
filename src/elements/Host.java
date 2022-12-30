@@ -1,18 +1,19 @@
 package elements;
 
-import insercoes.CreatePackets;
+import insercoes.MyData;
+import myThreads.ClientBufferThread;
 import packet.Packet;
 
 import java.io.*;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
-import java.util.Scanner;
+import java.util.List;
 
 public abstract class Host {
 
     public static String getMsg(int i) {
-        String[] words = CreatePackets.getWords();
+        String[] words = MyData.getComidas();
         String msg = words[i];
 //        System.out.println("Digite uma mensagem");
 //        Scanner sc = new Scanner(System.in);
@@ -51,4 +52,21 @@ public abstract class Host {
 
         socket.send(dPacket);
     }
+
+    public static boolean resendPkt(ClientBufferThread clientBufferThread, List<Packet> pktSentList, DatagramSocket socket) throws IOException {
+        //reenviar o pacote
+        if (clientBufferThread.isResendingPtk()) {
+            for (Packet p : pktSentList) {
+                if (p.getSequenceNum() == clientBufferThread.getPktToResendSeqNum()) {
+                    System.out.println("pacote para ser reenviado: " + p);
+                    sendPkt(p, socket);
+
+                    clientBufferThread.setResendingPtk(false);
+                }
+            }
+            return false;
+        }
+        return true;
+    }
+
 }

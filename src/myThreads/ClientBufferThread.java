@@ -1,6 +1,6 @@
 package myThreads;
 
-import attributes.Attributes;
+import attributes.Enums;
 import elements.Host;
 import packet.Packet;
 
@@ -17,7 +17,7 @@ public class ClientBufferThread extends Host implements Runnable {
     volatile DatagramSocket socket;
     volatile byte[] bytesToRcv;
     private volatile int cwnd; //janela de congestionamento
-    volatile Attributes.CongestionControl typeOfGrowth;
+    volatile Enums.CongestionControl typeOfGrowth;
     volatile Queue<Integer> seqNumSentList;
     volatile int ackReceived = 0;
     volatile List<Integer> lastAcksReceived;
@@ -28,16 +28,23 @@ public class ClientBufferThread extends Host implements Runnable {
     volatile int ackExpected;
     volatile boolean resendingPtk;
     volatile int pktToResendSeqNum = 0;
+    volatile Queue<Integer> pktsResended;
+    volatile Enums.CongestionControl lastTypeOfGrowth;
+    volatile long startRwndEmptyTime;
+    volatile long startTime;
+    volatile long rtt;
 
     public ClientBufferThread(DatagramSocket socket) {
         this.seqNumSentList = new LinkedList<>();
         this.lastAcksReceived = new ArrayList<>();
+        this.pktsResended = new LinkedList<>();
         this.bytesToRcv = null;
         this.socket = socket;
-        this.typeOfGrowth = Attributes.CongestionControl.SLOW_START;
+        this.typeOfGrowth = Enums.CongestionControl.SLOW_START;
         this.cwnd = MSS;
         this.sstresh = MSS * 8;
         this.resendingPtk = false;
+        this.lastTypeOfGrowth = this.typeOfGrowth;
     }
 
     @Override
@@ -54,8 +61,14 @@ public class ClientBufferThread extends Host implements Runnable {
                 byte[] fileToRecv = new byte[1024];
                 DatagramPacket datagram = new DatagramPacket(fileToRecv, fileToRecv.length);
                 socket.receive(datagram);
+                setRtt(System.currentTimeMillis() - getStartTime());
+                printRate();
+
 
                 Packet pktReceived = (Packet) convertBytesToObject(datagram.getData());
+
+                checkRwnd(pktReceived);
+
                 ackReceived = pktReceived.getAck();
                 addAckReceived(ackReceived);
 
@@ -76,7 +89,7 @@ public class ClientBufferThread extends Host implements Runnable {
             }
         } catch (SocketException e) {
             System.out.println("Timeout");
-            setTypeOfGrowth(Attributes.CongestionControl.SLOW_START);
+            setTypeOfGrowth(Enums.CongestionControl.SLOW_START);
             this.cwnd = MSS;
             throw new RuntimeException(e);
         } catch (IOException e) {
@@ -84,9 +97,22 @@ public class ClientBufferThread extends Host implements Runnable {
         }
     }
 
+    private void printRate() {
+        double rate = (double) getCwnd() / ((double) getRtt());
+        System.out.println("rate: " + rate * 1000 + "bytes/sec");
+    }
+
+    private void checkRwnd(Packet pktReceived) {
+        if (pktReceived.getRwnd() == 0 && getTypeOfGrowth() != Enums.CongestionControl.STOP) {
+            startRwndEmptyTime = System.currentTimeMillis();
+            setLastTypeOfGrowth(getTypeOfGrowth());
+            setTypeOfGrowth(Enums.CongestionControl.STOP);
+        }
+    }
+
     private void checkIfHitSstresh() {
         if (getCwnd() == getSstresh())
-            setTypeOfGrowth(Attributes.CongestionControl.CONGESTION_AVOIDANCE);
+            setTypeOfGrowth(Enums.CongestionControl.CONGESTION_AVOIDANCE);
     }
 
     private void checkTripleAck() {
@@ -96,16 +122,21 @@ public class ClientBufferThread extends Host implements Runnable {
                 && ackReceived == getLastAcksReceived().get(getLastAcksReceived().size() - 2)) {
             setSstresh(this.cwnd);
             this.cwnd /= 2;
-            setTypeOfGrowth(Attributes.CongestionControl.CONGESTION_AVOIDANCE);
+            setTypeOfGrowth(Enums.CongestionControl.CONGESTION_AVOIDANCE);
         }
     }
 
     private void checkIfAckReceivedIsEqualExpected(Packet pktReceived) {
         //verificar se não recebemos o ack desejado para fazer reenvio
-        if (ackReceived != ackExpected) {
+        if (ackReceived != ackExpected && getTypeOfGrowth() != Enums.CongestionControl.WAITING_PKT) {
             resendPkt(ackExpected);
+        } else if (ackReceived != ackExpected
+                && seqNumSentList.contains(ackReceived)
+                && getTypeOfGrowth() == Enums.CongestionControl.WAITING_PKT) {
+            seqNumSentList.remove(ackReceived);
         } else {
             seqNumSentList.poll();
+            setTypeOfGrowth(this.lastTypeOfGrowth);
             //atualizando lastByteAcked
             increaseLastByteAcked(pktReceived.getLength());
             increaseCwnd();
@@ -113,10 +144,10 @@ public class ClientBufferThread extends Host implements Runnable {
     }
 
     public void increaseCwnd() {
-        if (this.typeOfGrowth == Attributes.CongestionControl.SLOW_START) {
+        if (this.typeOfGrowth == Enums.CongestionControl.SLOW_START) {
             this.cwnd += this.MSS;
             //System.out.println("tamanho da janela: " + this.cwnd);
-        } else if (this.typeOfGrowth == Attributes.CongestionControl.CONGESTION_AVOIDANCE) {
+        } else if (this.typeOfGrowth == Enums.CongestionControl.CONGESTION_AVOIDANCE) {
             this.cwnd += (this.MSS * (this.MSS / this.cwnd));
             //System.out.println("tamanho da janela: " + this.cwnd);
         }
@@ -133,6 +164,9 @@ public class ClientBufferThread extends Host implements Runnable {
     public void resendPkt(int num) {
         this.pktToResendSeqNum = num;
         this.resendingPtk = true;
+        this.lastTypeOfGrowth = this.typeOfGrowth;
+        this.setTypeOfGrowth(Enums.CongestionControl.WAITING_PKT);
+        this.pktsResended.add(num);
     }
 
     public void decreaseCwnd() {
@@ -143,7 +177,7 @@ public class ClientBufferThread extends Host implements Runnable {
         this.seqNumSentList.add(num);
     }
 
-    public void setTypeOfGrowth(Attributes.CongestionControl typeOfGrowth) {
+    public void setTypeOfGrowth(Enums.CongestionControl typeOfGrowth) {
         this.typeOfGrowth = typeOfGrowth;
     }
 
@@ -193,5 +227,37 @@ public class ClientBufferThread extends Host implements Runnable {
 
     public void setResendingPtk(boolean resendingPtk) {
         this.resendingPtk = resendingPtk;
+    }
+
+    public long getStartRwndEmptyTime() {
+        return startRwndEmptyTime;
+    }
+
+    public Enums.CongestionControl getLastTypeOfGrowth() {
+        return lastTypeOfGrowth;
+    }
+
+    public void setLastTypeOfGrowth(Enums.CongestionControl lastTypeOfGrowth) {
+        this.lastTypeOfGrowth = lastTypeOfGrowth;
+    }
+
+    public long getStartTime() {
+        return startTime;
+    }
+
+    public void setStartTime(long startTime) {
+        this.startTime = startTime;
+    }
+
+    public long getRtt() {
+        return rtt;
+    }
+
+    public void setRtt(long rtt) {
+        this.rtt = rtt;
+    }
+
+    public Enums.CongestionControl getTypeOfGrowth() {
+        return typeOfGrowth;
     }
 }

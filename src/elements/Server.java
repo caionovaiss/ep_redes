@@ -18,7 +18,7 @@ public class Server extends Host {
             System.out.println("Server started");
             Queue<Packet> pktQueue = new LinkedList<>();
 
-            ServerBufferThread bufferThread = new ServerBufferThread(100, pktQueue);
+            ServerBufferThread bufferThread = new ServerBufferThread(1000, pktQueue);
             Thread listen = new Thread(bufferThread);
             listen.start();
 
@@ -40,7 +40,6 @@ public class Server extends Host {
                     // calculo da janela
                     bufferThread.setLastByteRcvd(pktRcvd.getLength());
                     rwnd = bufferThread.getRwnd();
-                    System.out.println("janela : " + rwnd);
 
                     //send ack
                     byte[] bytesToSend;
